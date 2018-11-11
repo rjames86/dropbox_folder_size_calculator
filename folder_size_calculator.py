@@ -1,13 +1,15 @@
 import dropbox
 import pandas as pd
+import os
 
-access_token = 'INSERT_YOUR_TOKEN_HERE'
+access_token = os.environ.get('DROPBOX_ACCESS_TOKEN', '')
 
 dbx = dropbox.Dropbox(access_token)
 
 all_folders = []
 all_hierarchies = []
 all_sizes_cumul = []
+
 
 def main():
     check_folders('', 1)
@@ -18,11 +20,23 @@ def main():
         folder_db["size_cumul_" + this_size] = folder_db["size_cumul"] * 1.0 / (1024 ** (i+1))
     folder_db.to_csv("folder_sizes.csv",index=False, encoding='utf8')
 
+
+def get_all_entries(folder_path):
+    all_entries = []
+
+    entries = dbx.files_list_folder(folder_path)
+    all_entries.extend(entries.entries)
+    while entries.has_more:
+        entries = dbx.files_list_folder_continue(entries.cursor)
+        all_entries.extend(entries.entries)
+    return all_entries
+
+
 def check_folders(folder_path, hierarchy):
     folder_temp_list = []
     file_temp_list = []
     this_folder_size = 0.0
-    for entry in dbx.files_list_folder(folder_path).entries:
+    for entry in get_all_entries(folder_path):
         if type(entry) == dropbox.files.FolderMetadata:
             folder_temp_list.append(entry)
         if type(entry) == dropbox.files.FileMetadata:
